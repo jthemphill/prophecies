@@ -3,6 +3,9 @@ name = "prophecies"
 version = "0.1.0"
 authors = ["Jeff Hemphill <jhemphill@fb.com>"]
 edition = "2018"
+description = "Webassembly Monte-Carlo Tree Search implementation of a neat game"
+repository = "https://github.com/jthemphill/prophecies"
+license = "MIT"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -30,12 +33,6 @@ wee_alloc = { version = "0.4.5", optional = true }
 version = "0.7.3"
 features = [
     "wasm-bindgen",
-]
-
-[dependencies.web-sys]
-version = "0.3.41"
-features = [
-    "console",
 ]
 
 [dev-dependencies]
