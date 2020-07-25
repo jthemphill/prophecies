@@ -11,9 +11,8 @@ const BOT_PLAYER = 1;
 const HUMAN_COLOR = "#d63b3b";
 const BOT_COLOR = "#3bd6d0";
 
-const PONDER_MS = 512;
-const PONDER_REPS = 256;
-const PONDER_INTERVAL = 4096;
+const PONDER_MS = 128;
+const PONDER_INTERVAL = 1204;
 
 const legalActionRegex = new RegExp("^X|[0-9]+$");
 
@@ -230,8 +229,8 @@ class Grid extends React.PureComponent<GridProps, GridState> {
         const t0 = performance.now();
         let nplayouts = 0;
         while (performance.now() - t0 < PONDER_MS) {
-            this.bot.playout_n(PONDER_REPS);
-            nplayouts += PONDER_REPS;
+            this.bot.playout();
+            ++nplayouts;
         }
         const tf = performance.now();
         console.log(`${nplayouts} playouts in ${tf - t0} ms`);

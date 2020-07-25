@@ -561,11 +561,9 @@ impl WasmBot {
         }
     }
 
-    pub fn playout_n(&mut self, n: usize) {
+    pub fn playout(&mut self) {
         let bot = unsafe { &mut *self.bot };
-        for _ in 0..n {
-            bot.playout();
-        }
+        bot.playout();
     }
 
     pub fn get_active_player(&self) -> usize {
