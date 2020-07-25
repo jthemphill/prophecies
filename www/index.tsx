@@ -11,39 +11,43 @@ const BOT_PLAYER = 1;
 const HUMAN_COLOR = "#d63b3b";
 const BOT_COLOR = "#3bd6d0";
 
-const nrows = 4;
-const ncols = 4;
+const NROWS = 4;
+const NCOLS = 4;
 
 const legalActionRegex = new RegExp("^[0-4X]{0,1}$");
 
-const e = React.createElement;
+type CellProps = {
+    guess?: number,
+    player?: number,
+    onBlur: ((row: number, col: number, e: FocusEvent) => void),
+    onChange: ((row: number, col: number, e: Event) => void),
+    row: number,
+    col: number,
+};
+type CellState = {
+    content: string,
+};
+class Cell extends React.PureComponent<CellProps, CellState> {
 
-class Cell extends React.PureComponent {
-
-    constructor() {
-        super();
+    constructor(props: CellProps, context?: any) {
+        super(props, context);
         this.state = {
             content: "",
         };
     }
 
     render() {
-        return e(
-            "td",
-            null,
-            e(
-                "input",
-                {
-                    disabled: this.props.guess !== null,
-                    onBlur: this.onBlur.bind(this),
-                    onChange: this.onChange.bind(this),
-                    style: {
-                        color: this.getColor(),
-                    },
-                    value: this.getContent(),
-                },
-            )
-        );
+        return <td>
+            <input
+                disabled={this.props.guess !== null}
+                onBlur={this.onBlur.bind(this)}
+                onChange={this.onChange.bind(this)}
+                style={{
+                    color: this.getColor(),
+                }}
+                value={this.getContent()}
+            ></input>
+        </td>;
     }
 
     getColor() {
@@ -56,7 +60,7 @@ class Cell extends React.PureComponent {
     }
 
     getContent() {
-        if (this.props.guess === null) {
+        if (this.props.guess == null) {
             return this.state.content;
         }
         if (this.props.guess === 0) {
@@ -65,7 +69,7 @@ class Cell extends React.PureComponent {
         return this.props.guess;
     }
 
-    onBlur(e) {
+    onBlur(e: FocusEvent) {
         if (legalActionRegex.test(this.state.content)) {
             try {
                 this.props.onBlur(this.props.row, this.props.col, e);
@@ -76,16 +80,28 @@ class Cell extends React.PureComponent {
         this.setState({ content: "" });
     }
 
-    onChange(e) {
-        this.setState({ content: e.currentTarget.value });
+    onChange(e: Event) {
+        this.setState({ content: (e.currentTarget as HTMLInputElement).value });
         return this.props.onChange(this.props.row, this.props.col, e);
     }
 }
 
-class Grid extends React.PureComponent {
+type GridProps = {
+    nrows: number,
+    ncols: number,
+};
+type GridState = {
+    activePlayer?: number,
+    grid: { guess?: number, player?: number }[][],
+    scores: number[],
+};
+class Grid extends React.PureComponent<GridProps, GridState> {
 
-    constructor() {
-        super();
+    bot: wasm.WasmBot;
+    shouldPonder: boolean;
+
+    constructor(props: GridProps, context: any) {
+        super(props, context);
         this.state = this.getGameState();
     }
 
@@ -105,11 +121,11 @@ class Grid extends React.PureComponent {
         this.bot.free();
     }
 
-    getGameState() {
+    getGameState(): GridState {
         let grid = [];
-        for (let r = 0; r < nrows; ++r) {
+        for (let r = 0; r < this.props.nrows; ++r) {
             let row = [];
-            for (let c = 0; c < ncols; ++c) {
+            for (let c = 0; c < this.props.ncols; ++c) {
                 if (this.bot) {
                     const cell = this.bot.get_cell(r, c);
                     row.push({
@@ -127,7 +143,7 @@ class Grid extends React.PureComponent {
         }
         return {
             activePlayer: this.bot ? this.bot.get_active_player() : HUMAN_PLAYER,
-            scores: this.bot ? this.bot.get_scores() : [0, 0],
+            scores: this.bot ? [...this.bot.get_scores()] : [0, 0],
             grid,
         };
     }
@@ -141,55 +157,37 @@ class Grid extends React.PureComponent {
             const row = [];
             for (let c = 0; c < this.props.ncols; c++) {
                 const { guess, player } = this.state.grid[r][c];
-                row.push(e(
-                    Cell,
-                    {
-                        col: c,
-                        guess: guess,
-                        id: `${r},${c}`,
-                        onBlur: this.onCellInputBlur.bind(this),
-                        onChange: this.onCellInputChange.bind(this),
-                        player: player,
-                        row: r,
-                    },
-                ));
+                row.push(
+                    <Cell
+                        col={c}
+                        guess={guess}
+                        onBlur={this.onCellInputBlur.bind(this)}
+                        onChange={this.onCellInputChange.bind(this)}
+                        player={player}
+                        row={r}
+                    ></Cell>
+                );
             }
-            rows.push(e("tr", null, ...row));
+            rows.push(<tr>{row}</tr>);
         }
-        return e(
-            "div",
-            {
-                className: "prophecies-game",
-            },
-            e(
-                "table",
-                {},
-                e(
-                    "tbody",
-                    null,
-                    ...rows,
-                ),
-            ),
-            e(
-                "div",
-                {
-                    className: "scores",
-                },
-                e(
-                    "div",
-                    {},
-                    `${this.state.scores[0]} - ${this.state.scores[1]}`,
-                ),
-            )
-        );
+        return <div className="prophecies-game">
+            <table><tbody>
+                {rows}
+            </tbody></table>
+            <div className="scores">
+                <div>
+                    {this.state.scores[0]} - {this.state.scores[1]}
+                </div>
+            </div>
+        </div>;
     }
 
-    onCellInputBlur(row, col, e) {
+    onCellInputBlur(row: number, col: number, e: FocusEvent) {
         // Already made a move in this cell
         if (this.state.grid[row][col].player !== null) {
             return;
         }
-        const cellValue = e.currentTarget.value;
+        const cellValue = (e.currentTarget as HTMLInputElement).value;
         if (!cellValue || !cellValue.length || !legalActionRegex.test(cellValue)) {
             return;
         }
@@ -197,9 +195,10 @@ class Grid extends React.PureComponent {
         this.takeAction({ row, col, guess });
     }
 
-    onCellInputChange(row, col, e) {
-        if (!legalActionRegex.test(e.target.value)) {
-            console.log(`${e.target.value} failed regex`);
+    onCellInputChange(row: number, col: number, e: Event) {
+        const target = e.target as HTMLInputElement;
+        if (!legalActionRegex.test(target.value)) {
+            console.log(`${target.value} failed regex`);
             return;
         }
     }
@@ -212,7 +211,7 @@ class Grid extends React.PureComponent {
         window.setTimeout(this.ponder.bind(this), 1000);
     }
 
-    takeAction(action) {
+    takeAction(action: { row: number, col: number, guess: number }) {
         if (!action) {
             return;
         }
@@ -229,6 +228,6 @@ class Grid extends React.PureComponent {
 }
 
 ReactDOM.render(
-    e(Grid, { nrows: 4, ncols: 4 }),
+    <Grid nrows={4} ncols={4} ></ Grid >,
     document.getElementById("prophecies-grid-container"),
 );

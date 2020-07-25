@@ -548,6 +548,7 @@ impl Drop for WasmBot {
 #[wasm_bindgen]
 impl WasmBot {
     pub fn new(nrows: usize, ncols: usize, me: usize) -> Self {
+        utils::set_panic_hook();
         Self {
             bot: Box::into_raw(Box::new(MCTSBot::new(Game::new(nrows, ncols), me))),
         }

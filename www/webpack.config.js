@@ -11,4 +11,21 @@ module.exports = {
   plugins: [
     new CopyWebpackPlugin(['index.html'])
   ],
+  resolve: {
+    extensions: [".js", ".ts", ".tsx"],
+    modules: ["src", "node_modules"],
+  },
+  module: {
+    rules: [
+      {
+        test: /\.ts(x?)$/,
+        exclude: /node_modules/,
+        use: [
+          {
+            loader: "ts-loader"
+          }
+        ]
+      }
+    ]
+  }
 };
