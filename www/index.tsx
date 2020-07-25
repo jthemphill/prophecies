@@ -11,10 +11,11 @@ const BOT_PLAYER = 1;
 const HUMAN_COLOR = "#d63b3b";
 const BOT_COLOR = "#3bd6d0";
 
-const PONDER_REPS = 2048;
+const PONDER_MS = 512;
+const PONDER_REPS = 256;
 const PONDER_INTERVAL = 4096;
 
-const legalActionRegex = new RegExp("^[0-4X]{0,1}$");
+const legalActionRegex = new RegExp("^X|[0-9]+$");
 
 type CellProps = {
     guess?: number,
@@ -176,9 +177,12 @@ class Grid extends React.PureComponent<GridProps, GridState> {
                 {rows}
             </tbody></table>
             <div className="scores">
-                <span style={{ color: HUMAN_COLOR }}>{this.state.scores[0]}</span>
-                <span> - </span>
-                <span style={{ color: BOT_COLOR }}>{this.state.scores[1]}</span>
+                <div>Scores:</div>
+                <div>
+                    <span style={{ color: HUMAN_COLOR }}>{this.state.scores[0]}</span>
+                    <span> - </span>
+                    <span style={{ color: BOT_COLOR }}>{this.state.scores[1]}</span>
+                </div>
             </div>
         </div>;
     }
@@ -209,8 +213,13 @@ class Grid extends React.PureComponent<GridProps, GridState> {
             return;
         }
         const t0 = performance.now();
-        this.bot.playout_n(PONDER_REPS);
-        console.log(`${performance.now() - t0} ms`);
+        let nplayouts = 0;
+        while (performance.now() - t0 < PONDER_MS) {
+            this.bot.playout_n(PONDER_REPS);
+            nplayouts += PONDER_REPS;
+        }
+        const tf = performance.now();
+        console.log(`${nplayouts} playouts in ${tf - t0} ms`);
         window.setTimeout(this.ponder.bind(this), PONDER_INTERVAL);
     }
 

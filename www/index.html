@@ -28,7 +28,6 @@
     }
 
     .rules {
-      padding: 10%;
       font-size: 1.2em;
     }
   </style>
@@ -38,10 +37,18 @@
   <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
   <div id="prophecies-grid-container"></div>
   <div class="rules">
-    Type a number in a cell to guess how many numbers you and your opponent will wind up placing in that row or column.
-    It's illegal to have two of the same number in the same row or column. You can also type "0" or "X" to cross a cell
-    out without placing a number in it. When a row or column is filled, the player who guessed correctly will get one
-    point for each number in the row or column.
+    <ul>
+      <li>Type a number in a cell to guess how many numbers you and your opponent will wind up placing in that row or
+        column.</li>
+      <ul>
+        <li>The number must be between 1 and the number of rows or columns in the grid.</li>
+        <li>It's illegal to have two of the same number in the same row or column.</li>
+      </ul>
+      <li>If you want to stop a cell from having any number, you can type "0" or "X" to cross a cell out without placing
+        a number in it.</li>
+      <li>When a row or column is filled, the player who guessed correctly will get one point for each number in the row
+        or column.</li>
+    </ul>
   </div>
   <script src="./bootstrap.js"></script>
 </body>
