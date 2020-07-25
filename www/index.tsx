@@ -11,8 +11,8 @@ const BOT_PLAYER = 1;
 const HUMAN_COLOR = "#d63b3b";
 const BOT_COLOR = "#3bd6d0";
 
-const NROWS = 4;
-const NCOLS = 4;
+const PONDER_REPS = 2048;
+const PONDER_INTERVAL = 4096;
 
 const legalActionRegex = new RegExp("^[0-4X]{0,1}$");
 
@@ -161,6 +161,7 @@ class Grid extends React.PureComponent<GridProps, GridState> {
                     <Cell
                         col={c}
                         guess={guess}
+                        key={`${r},${c}`}
                         onBlur={this.onCellInputBlur.bind(this)}
                         onChange={this.onCellInputChange.bind(this)}
                         player={player}
@@ -168,16 +169,16 @@ class Grid extends React.PureComponent<GridProps, GridState> {
                     ></Cell>
                 );
             }
-            rows.push(<tr>{row}</tr>);
+            rows.push(<tr key={r}>{row}</tr>);
         }
         return <div className="prophecies-game">
             <table><tbody>
                 {rows}
             </tbody></table>
             <div className="scores">
-                <div>
-                    {this.state.scores[0]} - {this.state.scores[1]}
-                </div>
+                <span style={{ color: HUMAN_COLOR }}>{this.state.scores[0]}</span>
+                <span> - </span>
+                <span style={{ color: BOT_COLOR }}>{this.state.scores[1]}</span>
             </div>
         </div>;
     }
@@ -207,8 +208,10 @@ class Grid extends React.PureComponent<GridProps, GridState> {
         if (!this.shouldPonder) {
             return;
         }
-        this.bot.playout_n(1024);
-        window.setTimeout(this.ponder.bind(this), 1000);
+        const t0 = performance.now();
+        this.bot.playout_n(PONDER_REPS);
+        console.log(`${performance.now() - t0} ms`);
+        window.setTimeout(this.ponder.bind(this), PONDER_INTERVAL);
     }
 
     takeAction(action: { row: number, col: number, guess: number }) {
@@ -221,9 +224,7 @@ class Grid extends React.PureComponent<GridProps, GridState> {
     }
 
     takeBotAction() {
-        this.shouldPonder = false;
         this.takeAction(this.bot.get_best_action());
-        this.shouldPonder = true;
     }
 }
 
