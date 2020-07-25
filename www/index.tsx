@@ -95,6 +95,7 @@ type GridState = {
     activePlayer?: number,
     grid: { guess?: number, player?: number }[][],
     scores: number[],
+    winProb?: number,
 };
 class Grid extends React.PureComponent<GridProps, GridState> {
 
@@ -144,6 +145,7 @@ class Grid extends React.PureComponent<GridProps, GridState> {
         }
         return {
             activePlayer: this.bot ? this.bot.get_active_player() : HUMAN_PLAYER,
+            winProb: this.getWinProb(),
             scores: this.bot ? [...this.bot.get_scores()] : [0, 0],
             grid,
         };
@@ -172,6 +174,14 @@ class Grid extends React.PureComponent<GridProps, GridState> {
             }
             rows.push(<tr key={r}>{row}</tr>);
         }
+        let cpuProb = null;
+        if (this.state.winProb != null) {
+            cpuProb = <div className="prediction">
+                The CPU thinks you have
+                a <span style={{ color: HUMAN_COLOR }}>{formatPercent(this.state.winProb)}</span> chance
+                of winning.
+            </div>;
+        }
         return <div className="prophecies-game">
             <table><tbody>
                 {rows}
@@ -183,6 +193,7 @@ class Grid extends React.PureComponent<GridProps, GridState> {
                     <span> - </span>
                     <span style={{ color: BOT_COLOR }}>{this.state.scores[1]}</span>
                 </div>
+                {cpuProb}
             </div>
         </div>;
     }
@@ -212,6 +223,10 @@ class Grid extends React.PureComponent<GridProps, GridState> {
         if (!this.shouldPonder) {
             return;
         }
+        if (this.bot.is_finished()) {
+            this.shouldPonder = false;
+            return;
+        }
         const t0 = performance.now();
         let nplayouts = 0;
         while (performance.now() - t0 < PONDER_MS) {
@@ -220,7 +235,22 @@ class Grid extends React.PureComponent<GridProps, GridState> {
         }
         const tf = performance.now();
         console.log(`${nplayouts} playouts in ${tf - t0} ms`);
+        this.setState({ winProb: this.getWinProb() });
         window.setTimeout(this.ponder.bind(this), PONDER_INTERVAL);
+    }
+
+    getWinProb() {
+        if (!this.bot) {
+            return null;
+        }
+        if (this.bot.get_active_player() !== HUMAN_PLAYER) {
+            return null;
+        }
+        const edge = this.bot.get_best_action();
+        if (edge == null) {
+            return null;
+        }
+        return (1 + edge.score / Number(edge.visits)) / 2;
     }
 
     takeAction(action: { row: number, col: number, guess: number }) {
@@ -233,8 +263,21 @@ class Grid extends React.PureComponent<GridProps, GridState> {
     }
 
     takeBotAction() {
-        this.takeAction(this.bot.get_best_action());
+        const edge = this.bot.get_best_action();
+        if (edge == null) {
+            this.shouldPonder = false;
+            return;
+        }
+        this.takeAction(edge.action);
     }
+}
+
+function formatPercent(fraction: number) {
+    const rounded = new Intl.NumberFormat(
+        'en-US',
+        { maximumSignificantDigits: 4 }
+    ).format(fraction * 100);
+    return `${rounded}%`;
 }
 
 ReactDOM.render(

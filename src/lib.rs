@@ -11,9 +11,6 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 use rand::prelude::*;
 use std::collections::HashMap;
-use std::sync::atomic::*;
-use std::sync::Arc;
-use std::thread::JoinHandle;
 
 type Player = usize;
 type GuessNum = usize;
@@ -389,7 +386,12 @@ fn playout(root: &Game, tree: &mut Tree) {
     for (backprop_node, action) in path {
         let p = backprop_node.active_player;
         if let Some(action_scores) = tree.get_mut(&backprop_node) {
-            action_scores.mark_visit(action, scores[p] as f64 - scores[1 - p] as f64);
+            let score = match scores[p].cmp(&scores[1 - p]) {
+                std::cmp::Ordering::Greater => 1.0,
+                std::cmp::Ordering::Equal => 0.0,
+                std::cmp::Ordering::Less => -1.0,
+            };
+            action_scores.mark_visit(action, score);
         } else {
             break;
         }
@@ -401,7 +403,6 @@ pub struct MCTSBot {
     pub root: Game,
     pub me: Player,
     tree: Tree,
-    ponderer: Option<Ponderer>,
 }
 
 impl MCTSBot {
@@ -410,12 +411,11 @@ impl MCTSBot {
             root,
             me,
             tree: HashMap::new(),
-            ponderer: None,
         };
         bot
     }
 
-    pub fn get_best_action(&self) -> Option<Action> {
+    pub fn get_best_action(&self) -> Option<(Action, (u64, f64))> {
         if self.root.is_finished() {
             return None;
         }
@@ -430,14 +430,13 @@ impl MCTSBot {
                             .partial_cmp(&(score2 / visits2 as f64))
                             .unwrap()
                     })
-                    .map(|(&action, _)| action)
+                    .map(|(&action, &scores)| (action, scores))
             })
             .flatten()
     }
 
     /// Tell the bot about the new game state
     pub fn update(&mut self, game: Game) {
-        self.finish_pondering();
         self.tree
             .retain(|g, _| g.empty_cells() <= game.empty_cells());
         self.root = game;
@@ -446,63 +445,10 @@ impl MCTSBot {
     pub fn playout(&mut self) {
         playout(&self.root, &mut self.tree);
     }
-
-    /// Spawn a background thread to process new moves
-    pub fn ponder(&mut self) {
-        // Don't reset the ponderer if we're already pondering
-        if self.ponderer.is_some() {
-            return;
-        }
-        // Don't ponder unless we can actually make a move
-        if self.root.is_finished() {
-            return;
-        }
-        let mut tree = HashMap::new();
-        std::mem::swap(&mut self.tree, &mut tree);
-        self.ponderer = Some(Ponderer::new(self.root.clone(), tree));
-    }
-
-    /// Join the background thread and process the work it did
-    pub fn finish_pondering(&mut self) {
-        if let Some(mut ponder_tree) = self.ponderer.take().map(|p| p.finish()) {
-            std::mem::swap(&mut self.tree, &mut ponder_tree);
-        }
-    }
-}
-
-struct Ponderer {
-    thread: Option<JoinHandle<Tree>>,
-    should_run: Arc<AtomicBool>,
-}
-
-impl Ponderer {
-    pub fn new(game: Game, mut tree: Tree) -> Self {
-        let should_run = Arc::new(AtomicBool::new(true));
-        let thread = {
-            let should_run = should_run.clone();
-            Some(std::thread::spawn(move || {
-                while should_run.load(Ordering::Relaxed) {
-                    playout(&game, &mut tree);
-                }
-                tree
-            }))
-        };
-        Self { thread, should_run }
-    }
-
-    pub fn finish(mut self) -> Tree {
-        self.should_run.store(false, Ordering::SeqCst);
-        self.thread.take().unwrap().join().unwrap()
-    }
-}
-
-impl Drop for Ponderer {
-    fn drop(&mut self) {
-        self.should_run.store(false, Ordering::Relaxed);
-    }
 }
 
 #[wasm_bindgen]
+#[derive(Copy, Clone, Debug)]
 pub struct WasmAction {
     pub row: usize,
     pub col: usize,
@@ -521,6 +467,14 @@ impl From<Action> for WasmAction {
             },
         }
     }
+}
+
+#[wasm_bindgen]
+#[derive(Copy, Clone, Debug)]
+pub struct WasmEdge {
+    pub action: WasmAction,
+    pub visits: u64,
+    pub score: f64,
 }
 
 #[wasm_bindgen]
@@ -552,6 +506,11 @@ impl WasmBot {
         Self {
             bot: Box::into_raw(Box::new(MCTSBot::new(Game::new(nrows, ncols), me))),
         }
+    }
+
+    pub fn is_finished(&self) -> bool {
+        let bot = unsafe { &*self.bot };
+        bot.root.is_finished()
     }
 
     pub fn get_scores(&self) -> Vec<usize> {
@@ -614,7 +573,7 @@ impl WasmBot {
         return bot.root.active_player;
     }
 
-    pub fn get_best_action(&mut self) -> Option<WasmAction> {
+    pub fn get_best_action(&mut self) -> Option<WasmEdge> {
         let bot = unsafe { &mut *self.bot };
         if bot.root.is_finished() {
             return None;
@@ -625,7 +584,11 @@ impl WasmBot {
         let action = bot.get_best_action();
         match action {
             None => None,
-            Some(action) => Some(action.into()),
+            Some((action, (visits, score))) => Some(WasmEdge {
+                action: action.into(),
+                visits,
+                score,
+            }),
         }
     }
 }
