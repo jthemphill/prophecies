@@ -11,8 +11,9 @@ const BOT_PLAYER = 1;
 const HUMAN_COLOR = "#d63b3b";
 const BOT_COLOR = "#3bd6d0";
 
+const MIN_PLAYOUTS = 2048;
 const PONDER_MS = 128;
-const PONDER_INTERVAL = 1204;
+const PONDER_INTERVAL = 1024;
 
 const legalActionRegex = new RegExp("^X|[0-9]+$");
 
@@ -263,6 +264,9 @@ class Grid extends React.PureComponent<GridProps, GridState> {
     }
 
     takeBotAction() {
+        for (let i = 0; i < MIN_PLAYOUTS; ++i) {
+            this.bot.playout();
+        }
         const edge = this.bot.get_best_action();
         if (edge == null) {
             this.shouldPonder = false;

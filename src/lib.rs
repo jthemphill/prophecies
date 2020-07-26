@@ -15,8 +15,6 @@ type Player = usize;
 type GuessNum = usize;
 type Tree = HashMap<Game, ActionScores>;
 
-const MIN_PLAYOUTS: usize = 2048;
-
 fn cartesian_product(nrows: usize, ncols: usize) -> impl Iterator<Item = (usize, usize)> {
     (0..nrows).flat_map(move |row| (0..ncols).map(move |col| (row, col)))
 }
@@ -575,9 +573,7 @@ impl WasmBot {
         if bot.root.is_finished() {
             return None;
         }
-        for _ in 0..MIN_PLAYOUTS {
-            bot.playout();
-        }
+        bot.playout();
         let action = bot.get_best_action();
         match action {
             None => None,
