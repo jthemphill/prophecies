@@ -470,7 +470,7 @@ impl From<Action> for WasmAction {
 #[derive(Copy, Clone, Debug)]
 pub struct WasmEdge {
     pub action: WasmAction,
-    pub visits: u64,
+    pub visits: f64,
     pub score: f64,
 }
 
@@ -579,7 +579,7 @@ impl WasmBot {
             None => None,
             Some((action, (visits, score))) => Some(WasmEdge {
                 action: action.into(),
-                visits,
+                visits: visits as _,
                 score,
             }),
         }
