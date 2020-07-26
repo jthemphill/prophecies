@@ -40,6 +40,7 @@ class Cell extends React.PureComponent<CellProps, CellState> {
         return <td>
             <input
                 disabled={this.props.guess !== null}
+                inputMode="numeric"
                 onBlur={this.onBlur.bind(this)}
                 onChange={this.onChange.bind(this)}
                 style={{

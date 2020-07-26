@@ -15,7 +15,7 @@ type Player = usize;
 type GuessNum = usize;
 type Tree = HashMap<Game, ActionScores>;
 
-const MIN_PLAYOUTS: usize = 2048;
+const MIN_PLAYOUTS: usize = 512;
 
 fn cartesian_product(nrows: usize, ncols: usize) -> impl Iterator<Item = (usize, usize)> {
     (0..nrows).flat_map(move |row| (0..ncols).map(move |col| (row, col)))
