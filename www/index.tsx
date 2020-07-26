@@ -11,7 +11,7 @@ const BOT_PLAYER = 1;
 const HUMAN_COLOR = "#d63b3b";
 const BOT_COLOR = "#3bd6d0";
 
-const MIN_PLAYOUTS = 2048;
+const MIN_PLAYOUTS_MS = 256;
 const PONDER_MS = 128;
 const PONDER_INTERVAL = 1024;
 
@@ -264,7 +264,8 @@ class Grid extends React.PureComponent<GridProps, GridState> {
     }
 
     takeBotAction() {
-        for (let i = 0; i < MIN_PLAYOUTS; ++i) {
+        const t0 = performance.now();
+        while (performance.now() - t0 < MIN_PLAYOUTS_MS) {
             this.bot.playout();
         }
         const edge = this.bot.get_best_action();
