@@ -485,15 +485,7 @@ pub struct WasmCell {
 
 #[wasm_bindgen]
 pub struct WasmBot {
-    // Opaque pointers for JS interop
-    pub bot: *mut MCTSBot,
-}
-
-impl Drop for WasmBot {
-    fn drop(&mut self) {
-        // Manually free opaque pointers
-        let _ = unsafe { Box::from_raw(self.bot) };
-    }
+    bot: MCTSBot,
 }
 
 #[wasm_bindgen]
@@ -501,23 +493,20 @@ impl WasmBot {
     pub fn new(nrows: usize, ncols: usize, me: usize) -> Self {
         utils::set_panic_hook();
         Self {
-            bot: Box::into_raw(Box::new(MCTSBot::new(Game::new(nrows, ncols), me))),
+            bot: MCTSBot::new(Game::new(nrows, ncols), me),
         }
     }
 
     pub fn is_finished(&self) -> bool {
-        let bot = unsafe { &*self.bot };
-        bot.root.is_finished()
+        self.bot.root.is_finished()
     }
 
     pub fn get_scores(&self) -> Vec<usize> {
-        let bot = unsafe { &*self.bot };
-        bot.root.get_scores().iter().cloned().collect()
+        self.bot.root.get_scores().iter().cloned().collect()
     }
 
     pub fn get_cell(&self, row: usize, col: usize) -> Result<WasmCell, JsValue> {
-        let bot = unsafe { &*self.bot };
-        let game = &bot.root;
+        let game = &self.bot.root;
         if row >= game.nrows || col >= game.ncols {
             return Err(JsValue::from_str(&format!(
                 "Cannot access {}, {}",
@@ -542,8 +531,7 @@ impl WasmBot {
     }
 
     pub fn place(&mut self, row: usize, col: usize, guess: usize) -> Result<(), JsValue> {
-        let bot = unsafe { &mut *self.bot };
-        let mut game = bot.root.clone();
+        let mut game = self.bot.root.clone();
         let cell = if guess > 0 {
             Cell::Guess(game.active_player, guess)
         } else {
@@ -551,7 +539,7 @@ impl WasmBot {
         };
         match game.place(row, col, cell) {
             Ok(ok) => {
-                bot.update(game);
+                self.bot.update(game);
                 Ok(ok)
             }
             Err(err) => Err(JsValue::from_str(format!("{:?}", err).as_str())),
@@ -559,22 +547,19 @@ impl WasmBot {
     }
 
     pub fn playout(&mut self) {
-        let bot = unsafe { &mut *self.bot };
-        bot.playout();
+        self.bot.playout();
     }
 
     pub fn get_active_player(&self) -> usize {
-        let bot = unsafe { &mut *self.bot };
-        return bot.root.active_player;
+        return self.bot.root.active_player;
     }
 
     pub fn get_best_action(&mut self) -> Option<WasmEdge> {
-        let bot = unsafe { &mut *self.bot };
-        if bot.root.is_finished() {
+        if self.bot.root.is_finished() {
             return None;
         }
-        bot.playout();
-        let action = bot.get_best_action();
+        self.bot.playout();
+        let action = self.bot.get_best_action();
         match action {
             None => None,
             Some((action, (visits, score))) => Some(WasmEdge {
